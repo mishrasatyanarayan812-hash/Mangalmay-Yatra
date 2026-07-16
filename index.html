@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abhay Mangalmay PRO Tour Editor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;700;800&family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+  :root { --primary: #D32F2F; --secondary: #FF9800; --dark: #0D47A1; }
+  *{box-sizing:border-box}
+  body { font-family: 'Poppins', sans-serif; display: flex; margin: 0; background: #eef2f7; }
+.form { width: 35%; padding: 15px; background: white; height: 100vh; overflow-y: auto; box-shadow: 2px 0 10px #0002; }
+.preview { width: 65%; padding: 20px; display: flex; justify-content: center; align-items: center; background: #eef2f7; }
+  h3 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 5px; margin-top: 15px; }
+  label { font-weight: 600; font-size: 13px; display: block; margin-top: 10px; }
+  input, textarea, select { width: 100%; padding: 8px; margin: 4px 0 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+  input[type=color] { height: 40px; padding: 3px; }
+  button { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 15px; }
+ .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* POSTER */
+  #poster { width: 480px; min-height: 700px; padding: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px #0004; background-size: cover; background-position: center; }
+ .section { padding: 15px; }
+ .editable { outline: 2px dashed transparent; transition: 0.2s; }
+ .editable:hover { outline: 2px dashed var(--secondary); }
+  #topBar { text-align: center; font-weight: 700; padding: 8px; }
+  #company { text-align: center; }
+  #companyEn { font-size: 16px; font-weight: 600; }
+  #companyHi { font-size: 28px; font-weight: 800; font-family: 'Mukta'; }
+  #mainBanner { text-align: center; padding: 12px; font-weight: 900; font-size: 18px; }
+ .photos-grid { display: flex; justify-content: space-around; padding: 10px; }
+ .photos-grid img { width: 130px; height: 130px; object-fit: cover; border-radius: 15px; border: 4px solid white; }
+  #busArea img { width: 100%; height: 150px; object-fit: cover; }
+  #priceBox { text-align: center; padding: 20px; font-weight: 900; font-size: 34px; font-family: 'Mukta'; }
+ .list-area { padding: 15px; column-count: 2; font-size: 15px; }
+ .footer-area { padding: 12px; text-align: center; font-size: 14px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="form">
+  <h3>🎨 Design Controls</h3>
+  <label>Background Color</label><input type="color" id="bgColor" value="#FFF8E1" oninput="updateStyle()">
+  <label>Border Color</label><input type="color" id="borderColor" value="#FF9800" oninput="updateStyle()">
+  <label>Main Banner Color</label><input type="color" id="bannerColor" value="#0D47A1" oninput="updateStyle()">
+  <label>Price Box Color</label><input type="color" id="priceColor" value="#B71C1C" oninput="updateStyle()">
+  <label>Background Image</label><input type="file" accept="image/*" onchange="setBgImage(event)">
+
+  <h3>📝 Text Content - Har Line Edit Karo</h3>
+  <label>Top Line 1</label><input type="text" id="top1" value="ॐ || श्री गणेशाय नम: ||" oninput="updateText()">
+  <label>Top Line 2</label><input type="text" id="top2" value="🔔 🌸 JAY SHRI RAM 🌸 🔔" oninput="updateText()">
+  <label>Company Name EN</label><input type="text" id="compEn" value="ABHAY MANGALMAY TOUR" oninput="updateText()">
+  <label>Company Name HI</label><input type="text" id="compHi" value="अभय मंगलमय टूर" oninput="updateText()">
+  <label>Main Tour Title</label><input type="text" id="mainTitle" value="पवित्र तीर्थ यात्रा" oninput="updateText()">
+  <label>Sub Title</label><input type="text" id="subTitle" value="|| गया जी || बौद्ध गया ||" oninput="updateText()">
+  <label>Price</label><input type="number" id="price" value="6000" oninput="updateText()">
+  <label>Contact</label><input type="text" id="contact" value="Booking: 98XXXXXXXX" oninput="updateText()">
+  <label>Office Address</label><input type="text" id="address" value="Office: Sipra, Madhya Pradesh" oninput="updateText()">
+
+  <label>Destination List</label><textarea id="destList" rows="4" oninput="updateText()">कालिजर, चित्रकूट, अयोध्या धाम, प्रयागराज, बनारस, गया जी</textarea>
+  <label>Amenities</label><textarea id="amenities" rows="3" oninput="updateText()">1. A/C Bus 2. 3 Time Bhojan 3. Nashta 4. Chai</textarea>
+
+  <h3>🖼️ Photo Upload</h3>
+  <label>Photo 1</label><input type="file" accept="image/*" onchange="loadImg(event, 'img1')">
+  <label>Photo 2</label><input type="file" accept="image/*" onchange="loadImg(event, 'img2')">
+  <label>Bus/Background Photo</label><input type="file" accept="image/*" onchange="loadImg(event, 'busImg')">
+
+  <button onclick="download()">📥 HD POSTER DOWNLOAD</button>
+</div>
+
+<div class="preview">
+  <div id="poster">
+    <div id="topBar" class="section editable">
+      <div id="top1Text">ॐ || श्री गणेशाय नम: ||</div>
+      <div id="top2Text">🔔 🌸 JAY SHRI RAM 🌸 🔔</div>
+    </div>
+    <div id="company" class="section editable">
+      <div id="companyEn">ABHAY MANGALMAY TOUR</div>
+      <div id="companyHi">अभय मंगलमय टूर</div>
+    </div>
+    <div id="mainBanner" class="editable">
+      <div id="mainTitleText">पवित्र तीर्थ यात्रा</div>
+      <div id="subTitleText">|| गया जी || बौद्ध गया ||</div>
+    </div>
+    <div class="photos-grid section">
+      <img id="img1" src="https://placehold.co/130x130/FF9800/fff?text=Photo+1">
+      <img id="img2" src="https://placehold.co/130x130/FF9800/fff?text=Photo+2">
+    </div>
+    <div id="busArea"><img id="busImg" src="https://placehold.co/480x150/0D47A1/fff?text=Bus+Photo"></div>
+    <div id="priceBox" class="editable">कियारा मात्र ₹<span id="priceText">6000</span>/-</div>
+    <div class="section">
+      <div style="font-weight:700; margin-bottom:5px;">सुविधा:</div>
+      <div id="amenityText" class="editable"></div>
+    </div>
+    <div class="list-area" id="destText"></div>
+    <div class="footer-area editable">
+      <div id="contactText">Booking: 98XXXXXXXX</div>
+      <div id="addressText">Office: Sipra, Madhya Pradesh</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateText(){
+  document.getElementById('top1Text').innerText = document.getElementById('top1').value;
+  document.getElementById('top2Text').innerText = document.getElementById('top2').value;
+  document.getElementById('companyEn').innerText = document.getElementById('compEn').value;
+  document.getElementById('companyHi').innerText = document.getElementById('compHi').value;
+  document.getElementById('mainTitleText').innerText = document.getElementById('mainTitle').value;
+  document.getElementById('subTitleText').innerText = document.getElementById('subTitle').value;
+  document.getElementById('priceText').innerText = document.getElementById('price').value;
+  document.getElementById('contactText').innerText = document.getElementById('contact').value;
+  document.getElementById('addressText').innerText = document.getElementById('address').value;
+  document.getElementById('amenityText').innerText = document.getElementById('amenities').value;
+
+  let dest = document.getElementById('destList').value.split(',');
+  let html = ''; dest.forEach(d => { if(d.trim()) html += `🔸 ${d.trim()}<br>`; });
+  document.getElementById('destText').innerHTML = html;
+}
+
+function updateStyle(){
+  let p = document.getElementById('poster');
+  p.style.backgroundColor = document.getElementById('bgColor').value;
+  p.style.border = `15px solid ${document.getElementById('borderColor').value}`;
+  document.getElementById('mainBanner').style.backgroundColor = document.getElementById('bannerColor').value;
+  document.getElementById('mainBanner').style.color = 'white';
+  document.getElementById('priceBox').style.backgroundColor = document.getElementById('priceColor').value;
+  document.getElementById('priceBox').style.color = 'white';
+}
+
+function loadImg(e, id){ let r = new FileReader(); r.onload = ()=>document.getElementById(id).src=r.result; r.readAsDataURL(e.target.files[0]); }
+function setBgImage(e){ let r = new FileReader(); r.onload = ()=>document.getElementById('poster').style.backgroundImage=`url(${r.result})`; r.readAsDataURL(e.target.files[0]); }
+
+function download(){
+  html2canvas(document.getElementById('poster'), {scale: 3}).then(c => {
+    let a = document.createElement('a');
+    a.download = 'Abhay_Mangalmay_PRO.png';
+    a.href = c.toDataURL('image/png');
+    a.click();
+  });
+}
+
+updateText(); updateStyle();
+</script>
+</body>
+</html>
