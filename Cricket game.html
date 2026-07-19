@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Modern Cricket - Abhay Mishra</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; touch-action: manipulation; }
+    body {
+        background: linear-gradient(#87CEEB, #2E8B57);
+        font-family: 'Arial', sans-serif;
+        overflow: hidden;
+        display:flex; justify-content:center; align-items:center; height:100vh;
+    }
+    #gameCanvas { background: #228B22; border:3px solid #333; max-width:100%; max-height:100vh; }
+
+   .screen {
+        position:absolute; width:100%; height:100%; display:flex;
+        flex-direction:column; justify-content:center; align-items:center;
+        background: rgba(0,0,0,0.8); color:white; text-align:center; z-index:10;
+    }
+   .screen h1 { font-size: 2.5em; color: #FFD700; margin-bottom:10px; }
+   .screen p { font-size: 1.2em; margin:5px; }
+   .credit { color: #FFD700; font-size:1em; margin-top:15px; }
+    button {
+        padding:12px 30px; font-size:1.2em; margin:10px; border:none; border-radius:10px;
+        background:#FF4500; color:white; font-weight:bold; cursor:pointer;
+    }
+    button:active { transform: scale(0.95); }
+
+    #hud {
+        position:absolute; top:0; left:0; width:100%; background:rgba(0,0,0,0.7);
+        color:white; padding:8px; display:flex; justify-content:space-around; font-weight:bold;
+        font-size:0.9em; z-index:5;
+    }
+    #pauseBtn {
+        position:absolute; top:50px; right:10px; padding:8px 15px; z-index:5; font-size:1em;
+    }
+    #splash { z-index:20; background:#000; animation: fadeOut 2s 2s forwards; }
+    @keyframes fadeOut { to { opacity:0; visibility:hidden; } }
+</style>
+</head>
+<body>
+
+<div id="splash" class="screen">
+    <h1>Made by Abhay Mishra</h1>
+</div>
+
+<div id="startScreen" class="screen" style="display:none;">
+    <h1>MODERN CRICKET</h1>
+    <p>Tap / Swipe Up to Hit</p>
+    <p>Score 1, 2, 3, 4, 6 Runs</p>
+    <button onclick="startGame()">START</button>
+    <p class="credit">Made by Abhay Mishra</p>
+</div>
+
+<div id="gameOverScreen" class="screen" style="display:none;">
+    <h1>GAME OVER</h1>
+    <p>Score: <span id="finalScore">0</span></p>
+    <p>Wickets: <span id="finalWicket">0</span></p>
+    <p>Strike Rate: <span id="finalSR">0</span></p>
+    <p>High Score: <span id="highScore">0</span></p>
+    <button onclick="restartGame()">RESTART</button>
+    <p class="credit">Made by Abhay Mishra</p>
+</div>
+
+<div id="hud" style="display:none;">
+    <div>Runs: <span id="runs">0</span></div>
+    <div>Balls: <span id="balls">0</span></div>
+    <div>Wickets: <span id="wickets">0</span>/2</div>
+    <div>SR: <span id="sr">0</span></div>
+</div>
+<button id="pauseBtn" style="display:none;" onclick="togglePause()">PAUSE</button>
+
+<canvas id="gameCanvas" width="400" height="700"></canvas>
+
+<audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_d171a24b6d.mp3"></audio>
+<audio id="crowdSound" src="https://cdn.pixabay.com/download/audio/2022/01/27/audio_2b0c6b7b0b.mp3"></audio>
+<audio id="outSound" src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3"></audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'splash'; // splash, start, playing, paused, over
+let runs=0, balls=0, wickets=0, highScore=0;
+let ball, bowler, batsman, ballComing=false, paused=false;
+let hitSound = document.getElementById('hitSound');
+let crowdSound = document.getElementById('crowdSound');
+let outSound = document.getElementById('outSound');
+
+highScore = localStorage.getItem('cricketHighScore') || 0;
+
+// Resize for mobile
+function resize() {
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    let ratio = 400/700;
+    if(w/h > ratio) { canvas.style.height = '100vh'; canvas.style.width = 100*ratio + 'vh'; }
+    else { canvas.style.width = '100vw'; canvas.style.height = 100/ratio + 'vw'; }
+}
+window.addEventListener('resize', resize); resize();
+
+// Show start screen after splash
+setTimeout(()=>{
+    document.getElementById('splash').style.display='none';
+    document.getElementById('startScreen').style.display='flex';
+}, 3000);
+
+function startGame() {
+    document.getElementById('startScreen').style.display='none';
+    document.getElementById('gameOverScreen').style.display='none';
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('pauseBtn').style.display='block';
+
+    runs=0; balls=0; wickets=0; paused=false;
+    bowler = {x:200, y:50};
+    batsman = {x:200, y:600};
+    gameState='playing';
+    crowdSound.loop=true; crowdSound.play();
+    updateHUD();
+    throwBall();
+    gameLoop();
+}
+
+function restartGame() { startGame(); }
+
+function togglePause() {
+    paused =!paused;
+    document.getElementById('pauseBtn').innerText = paused? 'RESUME' : 'PAUSE';
+}
+
+function gameOver() {
+    gameState='over';
+    crowdSound.pause();
+    document.getElementById('hud').style.display='none';
+    document.getElementById('pauseBtn').style.display='none';
+    document.getElementById('finalScore').innerText=runs;
+    document.getElementById('finalWicket').innerText=wickets;
+    let sr = balls>0? ((runs/balls)*100).toFixed(2) : 0;
+    document.getElementById('finalSR').innerText=sr;
+    if(runs>highScore){ highScore=runs; localStorage.setItem('cricketHighScore', highScore); }
+    document.getElementById('highScore').innerText=highScore;
+    document.getElementById('gameOverScreen').style.display='flex';
+}
+
+function updateHUD() {
+    document.getElementById('runs').innerText=runs;
+    document.getElementById('balls').innerText=balls;
+    document.getElementById('wickets').innerText=wickets;
+    let sr = balls>0? ((runs/balls)*100).toFixed(0) : 0;
+    document.getElementById('sr').innerText=sr;
+}
+
+function throwBall() {
+    if(gameState!='playing' || paused) return;
+    ball = {x:200, y:60, speed:6, active:true};
+    ballComing=true;
+    setTimeout(()=>{ if(ball.active) wicket(); }, 2000); // auto out if no hit
+}
+
+function hitBall(power) {
+    if(!ballComing) return;
+    ballComing=false; ball.active=false;
+    balls++;
+    hitSound.play();
+
+    // Decide runs based on hit timing/power
+    let run = 0;
+    if(power > 0.8) run = 6;
+    else if(power > 0.6) run = 4;
+    else if(power > 0.4) run = 3;
+    else if(power > 0.2) run = 2;
+    else run = 1;
+
+    runs += run;
+    updateHUD();
+    setTimeout(throwBall, 1200);
+}
+
+function wicket() {
+    if(!ballComing) return;
+    ballComing=false; ball.active=false;
+    wickets++;
+    balls++;
+    outSound.play();
+    updateHUD();
+    if(wickets>=2) { gameOver(); }
+    else { setTimeout(throwBall, 1200); }
+}
+
+function drawStadium() {
+    // Ground
+    ctx.fillStyle='#228B22'; ctx.fillRect(0,0,400,700);
+    // Pitch
+    ctx.fillStyle='#D2B48C'; ctx.fillRect(150,100,100,500);
+    // Crowd
+    ctx.fillStyle='#555'; ctx.fillRect(0,0,400,80);
+}
+
+function drawPlayers() {
+    // Bowler
+    ctx.fillStyle='#0000FF'; ctx.fillRect(bowler.x-10, bowler.y, 20, 30);
+    // Batsman
+    ctx.fillStyle='#FF0000'; ctx.fillRect(batsman.x-15, batsman.y, 30, 40);
+    // Stumps
+    ctx.fillStyle='#8B4513'; ctx.fillRect(batsman.x-10, batsman.y-10, 20, 10);
+}
+
+function drawBall() {
+    if(ball && ball.active) {
+        ball.y += ball.speed;
+        ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(ball.x, ball.y, 8, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function gameLoop() {
+    if(gameState!='playing') return;
+    if(!paused){
+        ctx.clearRect(0,0,400,700);
+        drawStadium();
+        drawPlayers();
+        drawBall();
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+// Controls: Tap = 4, Swipe Up = 6
+let touchStartY=0;
+canvas.addEventListener('touchstart', e=>{ touchStartY=e.touches[0].clientY; });
+canvas.addEventListener('touchend', e=>{
+    if(gameState!='playing' || paused) return;
+    let touchEndY=e.changedTouches[0].clientY;
+    let diff = touchStartY - touchEndY;
+    if(diff > 50) hitBall(0.9); // swipe up = 6
+    else hitBall(0.5); // tap = 4
+});
+canvas.addEventListener('click', ()=>{ if(gameState=='playing' &&!paused) hitBall(0.5); });
+</script>
+</body>
+</html>
