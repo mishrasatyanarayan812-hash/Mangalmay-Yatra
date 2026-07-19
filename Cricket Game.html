@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Pro Cricket 2D - Abhay Mishra</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; touch-action: manipulation; }
+    body { background:#000; font-family:'Arial Black', sans-serif; overflow:hidden; display:flex; justify-content:center; align-items:center; height:100vh; }
+    canvas { background: linear-gradient(#87CEEB 0% 40%, #228B22 40% 100%); max-width:100%; max-height:100vh; border:3px solid #333; }
+
+  .screen { position:absolute; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); color:white; text-align:center; z-index:20; }
+    #splash h1 { font-size:3em; color:#FFD700; animation: glow 1.5s infinite; }
+    @keyframes glow { 0%,100%{text-shadow:0 0 10px #FFD700} 50%{text-shadow:0 0 30px #FFD700} }
+
+  .hud { position:absolute; top:0; width:100%; background:rgba(0,0,0,0.8); color:white; padding:8px; display:flex; justify-content:space-around; font-size:0.9em; z-index:10; }
+    #popup { position:absolute; top:40%; width:100%; text-align:center; font-size:3em; font-weight:bold; color:#FFD700; display:none; animation: pop 1s; z-index:15; }
+    @keyframes pop { 0%{transform:scale(0)} 50%{transform:scale(1.3)} 100%{transform:scale(1); opacity:0} }
+
+    #confetti { position:absolute; width:100%; height:100%; pointer-events:none; z-index:14; }
+   .confetti-piece { position:absolute; width:8px; height:8px; background:#FFD700; animation: fall 3s linear; }
+    @keyframes fall { to { transform:translateY(100vh) rotate(720deg); opacity:0; } }
+
+    button { padding:12px 25px; margin:8px; font-size:1.1em; border:none; border-radius:10px; background:#FF4500; color:white; font-weight:bold; cursor:pointer; }
+    button:active { transform:scale(0.95); }
+    #pauseBtn { position:absolute; top:50px; right:10px; z-index:10; }
+   .credit { color:#FFD700; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<div id="splash" class="screen">
+    <h1>Made by Abhay Mishra</h1>
+</div>
+
+<div id="startScreen" class="screen" style="display:none;">
+    <h1 style="color:#00FF00;">PRO CRICKET 2D</h1>
+    <p>Tap = Hit | Swipe Up = Big Shot</p>
+    <p>Hit the ball with bat for runs</p>
+    <button onclick="startGame()">START GAME</button>
+    <p class="credit">Made by Abhay Mishra</p>
+</div>
+
+<div id="gameOverScreen" class="screen" style="display:none;">
+    <h1 style="color:red;">GAME OVER</h1>
+    <p>Score: <span id="finalScore">0</span>/<span id="finalWickets">0</span></p>
+    <p>Overs: <span id="finalOvers">0.0</span></p>
+    <p>Strike Rate: <span id="finalSR">0</span></p>
+    <p>High Score: <span id="highScore">0</span></p>
+    <button onclick="startGame()">RESTART</button>
+    <button onclick="goMenu()">MAIN MENU</button>
+    <p class="credit">Made by Abhay Mishra</p>
+</div>
+
+<div class="hud" style="display:none;" id="hud">
+    <div>Score: <span id="score">0</span>/<span id="wickets">0</span></div>
+    <div>Overs: <span id="overs">0.0</span></div>
+    <div>Balls: <span id="balls">0</span></div>
+    <div>SR: <span id="sr">0</span></div>
+    <div>HS: <span id="hs">0</span></div>
+</div>
+<button id="pauseBtn" style="display:none;" onclick="togglePause()">PAUSE</button>
+<div id="popup"></div>
+<canvas id="gameCanvas" width="400" height="700"></canvas>
+<div id="confetti"></div>
+
+<!-- Sounds -->
+<audio id="s1" src="https://cdn.pixabay.com/audio/1.mp3"></audio>
+<audio id="s2" src="https://cdn.pixabay.com/audio/2.mp3"></audio>
+<audio id="s4" src="https://cdn.pixabay.com/audio/4.mp3"></audio>
+<audio id="s6" src="https://cdn.pixabay.com/audio/6.mp3"></audio>
+<audio id="hit" src="https://cdn.pixabay.com/audio/hit.mp3"></audio>
+<audio id="crowd" src="https://cdn.pixabay.com/audio/crowd.mp3"></audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState='splash', runs=0, balls=0, wickets=0, highScore=0, paused=false;
+let bowler, batsman, ball, batAngle=0, isBowling=false, isHitting=false;
+let overs=0, halfCenturyDone=false, centuryDone=false;
+
+highScore = localStorage.getItem('cricketHS') || 0;
+document.getElementById('hs').innerText=highScore;
+
+setTimeout(()=>{ document.getElementById('splash').style.display='none'; document.getElementById('startScreen').style.display='flex'; }, 2500);
+
+function startGame(){
+    document.getElementById('startScreen').style.display='none';
+    document.getElementById('gameOverScreen').style.display='none';
+    document.getElementById('hud').style.display='flex';
+    document.getElementById('pauseBtn').style.display='block';
+
+    runs=0; balls=0; wickets=0; overs=0; paused=false; halfCenturyDone=false; centuryDone=false;
+    bowler={x:200,y:80,runFrame:0};
+    batsman={x:200,y:580};
+    gameState='playing';
+    document.getElementById('crowd').play();
+    updateHUD();
+    startOver();
+    gameLoop();
+}
+
+function goMenu(){
+    document.getElementById('gameOverScreen').style.display='none';
+    document.getElementById('hud').style.display='none';
+    document.getElementById('pauseBtn').style.display='none';
+    document.getElementById('startScreen').style.display='flex';
+}
+
+function togglePause(){ paused=!paused; document.getElementById('pauseBtn').innerText=paused?'RESUME':'PAUSE'; }
+
+function startOver(){
+    isBowling=true;
+    bowler.runFrame=0;
+    setTimeout(bowlBall, 800);
+}
+
+function bowlBall(){
+    if(paused || gameState!='playing') return;
+    ball={x:200,y:100,vx:0,vy:5,active:true};
+    isBowling=false;
+}
+
+function hitBall(power){
+    if(!ball ||!ball.active) return;
+    let dx = ball.x - batsman.x;
+    if(Math.abs(dx) < 40 && ball.y > 560 && ball.y < 600){ // Bat hit detection
+        ball.active=false;
+        document.getElementById('hit').play();
+        isHitting=true; batAngle=-45;
+        setTimeout(()=>{isHitting=false; batAngle=0},200);
+
+        balls++;
+        let run = power>0.8?6 : power>0.6?4 : power>0.4?3 : power>0.2?2 : 1;
+        runs+=run;
+        showPopup(run);
+        playRunSound(run);
+        if(run>=4) throwBoundary(run);
+        checkMilestone();
+        updateHUD();
+        setTimeout(()=>{ if(wickets<2) startOver(); else gameOver(); },1200);
+    }
+}
+
+function showPopup(text){
+    let msg = text==1?'1 RUN':text==2?'2 RUNS':text==3?'3 RUNS':text==4?'FOUR!':'SIX!';
+    let popup=document.getElementById('popup');
+    popup.innerText=msg; popup.style.display='block';
+    popup.style.color = text==6?'#FF0000':text==4?'#00FF00':'#FFFF00';
+    setTimeout(()=>popup.style.display='none',1000);
+}
+
+function playRunSound(run){
+    if(run==1) document.getElementById('s1').play();
+    if(run==2) document.getElementById('s2').play();
+    if(run==4) document.getElementById('s4').play();
+    if(run==6) document.getElementById('s6').play();
+}
+
+function throwBoundary(run){
+    for(let i=0;i<30;i++){
+        let c=document.createElement('div');
+        c.className='confetti-piece';
+        c.style.left=Math.random()*100+'%';
+        c.style.background=`hsl(${Math.random()*360},100%,50%)`;
+        document.getElementById('confetti').appendChild(c);
+        setTimeout(()=>c.remove(),3000);
+    }
+}
+
+function checkMilestone(){
+    if(runs>=50 &&!halfCenturyDone){
+        halfCenturyDone=true;
+        showPopup('HALF CENTURY!');
+        throwBoundary(6); throwBoundary(6);
+    }
+    if(runs>=100 &&!centuryDone){
+        centuryDone=true;
+        showPopup('CENTURY!');
+        for(let i=0;i<100;i++) throwBoundary(6);
+    }
+}
+
+function gameOver(){
+    gameState='over';
+    document.getElementById('crowd').pause();
+    document.getElementById('hud').style.display='none';
+    document.getElementById('pauseBtn').style.display='none';
+    document.getElementById('finalScore').innerText=runs;
+    document.getElementById('finalWickets').innerText=wickets;
+    document.getElementById('finalOvers').innerText=(balls/6).toFixed(1);
+    document.getElementById('finalSR').innerText=balls>0?((runs/balls)*100).toFixed(2):0;
+    if(runs>highScore){ highScore=runs; localStorage.setItem('cricketHS',highScore); }
+    document.getElementById('highScore').innerText=highScore;
+    document.getElementById('gameOverScreen').style.display='flex';
+}
+
+function updateHUD(){
+    document.getElementById('score').innerText=runs;
+    document.getElementById('wickets').innerText=wickets;
+    document.getElementById('balls').innerText=balls;
+    document.getElementById('overs').innerText=(Math.floor(balls/6))+'.'+(balls%6);
+    document.getElementById('sr').innerText=balls>0?((runs/balls)*100).toFixed(0):0;
+}
+
+// Drawing
+function drawBowler(){
+    ctx.fillStyle='#0000FF';
+    if(isBowling){ bowler.runFrame++; ctx.fillRect(bowler.x-10, bowler.y+Math.sin(bowler.runFrame/5)*3, 20, 40); }
+    else ctx.fillRect(bowler.x-10, bowler.y, 20, 40);
+    ctx.fillStyle='#FFDBAC'; ctx.beginPath(); ctx.arc(bowler.x, bowler.y-5, 10, 0, Math.PI*2); ctx.fill(); // head
+}
+
+function drawBatsman(){
+    ctx.save();
+    ctx.translate(batsman.x, batsman.y);
+    ctx.rotate(batAngle*Math.PI/180);
+    ctx.fillStyle='#8B4513'; ctx.fillRect(-5,-30,10,40); // bat
+    ctx.restore();
+
+    ctx.fillStyle='#FF0000'; ctx.fillRect(batsman.x-12, batsman.y, 24, 45); // body
+    ctx.fillStyle='#FFDBAC'; ctx.beginPath(); ctx.arc(batsman.x, batsman.y-8, 12, 0, Math.PI*2); ctx.fill(); // head
+    // stumps
+    ctx.fillStyle='#FFF'; ctx.fillRect(batsman.x-15, batsman.y-5, 5, 15);
+    ctx.fillRect(batsman.x-5, batsman.y-5, 5, 15);
+    ctx.fillRect(batsman.x+5, batsman.y-5, 5, 15);
+}
+
+function drawBall(){
+    if(ball && ball.active){
+        ball.y+=ball.vy;
+        if(ball.y>600){ wickets++; balls++; ball.active=false; updateHUD(); setTimeout(()=>{ if(wickets<2) startOver(); else gameOver(); },800); }
+        ctx.fillStyle='red'; ctx.beginPath(); ctx.arc(ball.x, ball.y, 7, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function gameLoop(){
+    if(gameState!='playing') return;
+    if(!paused){
+        ctx.clearRect(0,0,400,700);
+        ctx.fillStyle='#228B22'; ctx.fillRect(0,280,400,420); // ground
+        ctx.fillStyle='#D2B48C'; ctx.fillRect(150,100,100,500); // pitch
+        drawBowler(); drawBatsman(); drawBall();
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+// Controls
+let touchStartY=0;
+canvas.addEventListener('touchstart', e=>{ touchStartY=e.touches[0].clientY; });
+canvas.addEventListener('touchend', e=>{
+    if(gameState!='playing'||paused) return;
+    let diff = touchStartY - e.changedTouches[0].clientY;
+    hitBall(diff>80?0.9:0.5);
+});
+canvas.addEventListener('click', ()=>{ if(gameState=='playing'&&!paused) hitBall(0.5); });
+</script>
+</body>
+</html>
